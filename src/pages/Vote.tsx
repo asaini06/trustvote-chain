@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Shield, CheckCircle, Wallet } from "lucide-react";
@@ -6,7 +5,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { ethers } from "ethers";
 import { SENTIMENT_VOTING_ABI, CONTRACT_ADDRESS } from "../utils/contracts";
 import { useWallet } from "@/contexts/WalletContext";
-import { Button } from "@/components/ui/button";
 
 interface VoteOption {
   id: number;
@@ -23,7 +21,6 @@ const Vote = () => {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [contract, setContract] = useState<ethers.Contract | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
 
   const voteOptions: VoteOption[] = [
     {
@@ -51,7 +48,6 @@ const Vote = () => {
 
   const handleConnectWallet = async () => {
     try {
-      setIsConnecting(true);
       await connectWallet();
       if (signer) {
         const votingContract = new ethers.Contract(
@@ -62,25 +58,23 @@ const Vote = () => {
         setContract(votingContract);
       }
       toast({
-        title: "Ready to Vote!",
-        description: "Your wallet is connected. You can now cast your vote.",
+        title: "Wallet Connected",
+        description: "Your wallet has been successfully connected.",
       });
     } catch (error) {
       toast({
         title: "Connection Failed",
-        description: "Please make sure MetaMask is installed and try again.",
+        description: "Failed to connect to your wallet.",
         variant: "destructive",
       });
-    } finally {
-      setIsConnecting(false);
     }
   };
 
   const handleVote = async () => {
     if (!walletConnected) {
       toast({
-        title: "Connect Your Wallet",
-        description: "Please connect your wallet to vote.",
+        title: "Wallet Not Connected",
+        description: "Please connect your wallet first.",
         variant: "destructive",
       });
       return;
@@ -88,8 +82,8 @@ const Vote = () => {
 
     if (selectedOption === null) {
       toast({
-        title: "Select an Option",
-        description: "Please select a voting option before proceeding.",
+        title: "Please select an option",
+        description: "You must select an option to cast your vote.",
         variant: "destructive",
       });
       return;
@@ -99,69 +93,32 @@ const Vote = () => {
       if (!contract) throw new Error("Contract not initialized");
 
       toast({
-        title: "Confirming Vote",
+        title: "Processing Vote",
         description: "Please confirm the transaction in your wallet...",
       });
 
+      // Update sentiment score first
       const selectedSentiment = voteOptions.find(opt => opt.id === selectedOption)?.sentiment ?? 0;
       const updateTx = await contract.updateSentiment(selectedSentiment);
       await updateTx.wait();
 
+      // Then cast the vote
       const voteTx = await contract.vote();
       await voteTx.wait();
 
       setHasVoted(true);
       toast({
-        title: "Success!",
-        description: "Your vote has been recorded on the blockchain.",
+        title: "Vote Recorded",
+        description: "Your vote has been successfully recorded on the blockchain.",
       });
     } catch (error) {
       toast({
         title: "Voting Failed",
-        description: "There was an error while processing your vote. Please try again.",
+        description: "There was an error processing your vote.",
         variant: "destructive",
       });
     }
   };
-
-  if (!walletConnected) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <header className="w-full py-6 px-4 border-b backdrop-blur-sm sticky top-0 z-50 bg-white/80">
-          <div className="container mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-              <Shield className="w-8 h-8 text-primary" />
-              <h1 className="text-2xl font-semibold">SecureVote</h1>
-            </div>
-          </div>
-        </header>
-
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center p-8 max-w-md">
-            <Wallet className="w-16 h-16 text-primary mx-auto mb-6" />
-            <h2 className="text-2xl font-bold mb-4">Connect Your Wallet to Vote</h2>
-            <p className="text-gray-600 mb-8">
-              To participate in voting, you'll need to connect your Ethereum wallet. This ensures secure and transparent voting on the blockchain.
-            </p>
-            <Button
-              onClick={handleConnectWallet}
-              className="w-full flex items-center justify-center gap-2"
-              disabled={isConnecting}
-            >
-              {isConnecting ? (
-                "Connecting..."
-              ) : (
-                <>
-                  <Wallet className="w-4 h-4" />
-                  Connect Wallet to Vote
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -171,10 +128,15 @@ const Vote = () => {
             <Shield className="w-8 h-8 text-primary" />
             <h1 className="text-2xl font-semibold">SecureVote</h1>
           </div>
-          <div className="flex items-center gap-2 text-sm text-green-600">
-            <Wallet className="w-4 h-4" />
-            Wallet Connected
-          </div>
+          {!walletConnected && (
+            <button
+              onClick={handleConnectWallet}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              <Wallet className="w-4 h-4" />
+              Connect Wallet
+            </button>
+          )}
         </div>
       </header>
 
@@ -186,10 +148,8 @@ const Vote = () => {
             {voteOptions.map((option) => (
               <div
                 key={option.id}
-                className={`p-6 rounded-lg cursor-pointer border transition-all ${
-                  selectedOption === option.id 
-                    ? 'ring-2 ring-primary border-primary bg-primary/5' 
-                    : 'border-gray-200 hover:border-primary/50'
+                className={`glass-card hover-card p-6 rounded-lg cursor-pointer ${
+                  selectedOption === option.id ? 'ring-2 ring-primary' : ''
                 }`}
                 onClick={() => !hasVoted && setSelectedOption(option.id)}
               >
@@ -212,25 +172,28 @@ const Vote = () => {
           </div>
 
           {!hasVoted ? (
-            <Button
+            <button
               onClick={handleVote}
-              className="mt-8 w-full py-6 text-lg"
-              disabled={selectedOption === null}
+              disabled={!walletConnected}
+              className={`mt-8 w-full py-3 ${
+                walletConnected 
+                  ? 'bg-primary hover:bg-primary/90' 
+                  : 'bg-gray-400 cursor-not-allowed'
+              } text-white rounded-lg transition-colors`}
             >
-              {selectedOption === null ? "Select an Option to Vote" : "Confirm Vote"}
-            </Button>
+              {walletConnected ? 'Confirm Vote' : 'Connect Wallet to Vote'}
+            </button>
           ) : (
             <div className="mt-8 text-center">
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-green-700">Vote Successfully Recorded</h3>
               <p className="text-gray-600 mt-2">Thank you for participating in the voting process.</p>
-              <Button
+              <button
                 onClick={() => navigate('/')}
-                className="mt-4"
-                variant="outline"
+                className="mt-4 px-6 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
               >
                 Return Home
-              </Button>
+              </button>
             </div>
           )}
         </div>
