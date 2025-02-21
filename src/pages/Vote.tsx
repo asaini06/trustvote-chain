@@ -1,10 +1,10 @@
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Shield, CheckCircle, Wallet } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { ethers } from "ethers";
 import { SENTIMENT_VOTING_ABI, CONTRACT_ADDRESS } from "../utils/contracts";
+import { useWallet } from "@/contexts/WalletContext";
 
 interface VoteOption {
   id: number;
@@ -17,11 +17,9 @@ interface VoteOption {
 const Vote = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { walletConnected, signer, connectWallet } = useWallet();
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [provider, setProvider] = useState<ethers.Provider | null>(null);
-  const [signer, setSigner] = useState<ethers.Signer | null>(null);
   const [contract, setContract] = useState<ethers.Contract | null>(null);
 
   const voteOptions: VoteOption[] = [
@@ -48,36 +46,21 @@ const Vote = () => {
     }
   ];
 
-  const connectWallet = async () => {
+  const handleConnectWallet = async () => {
     try {
-      const ethereum = window.ethereum;
-
-      if (ethereum) {
-        await ethereum.request({ method: 'eth_requestAccounts' });
-        const ethersProvider = new ethers.BrowserProvider(ethereum);
-        const ethersSigner = await ethersProvider.getSigner();
+      await connectWallet();
+      if (signer) {
         const votingContract = new ethers.Contract(
           CONTRACT_ADDRESS,
           SENTIMENT_VOTING_ABI,
-          ethersSigner
+          signer
         );
-
-        setProvider(ethersProvider);
-        setSigner(ethersSigner);
         setContract(votingContract);
-        setWalletConnected(true);
-
-        toast({
-          title: "Wallet Connected",
-          description: "Your wallet has been successfully connected.",
-        });
-      } else {
-        toast({
-          title: "Metamask Required",
-          description: "Please install Metamask to use this feature.",
-          variant: "destructive",
-        });
       }
+      toast({
+        title: "Wallet Connected",
+        description: "Your wallet has been successfully connected.",
+      });
     } catch (error) {
       toast({
         title: "Connection Failed",
@@ -147,7 +130,7 @@ const Vote = () => {
           </div>
           {!walletConnected && (
             <button
-              onClick={connectWallet}
+              onClick={handleConnectWallet}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
             >
               <Wallet className="w-4 h-4" />

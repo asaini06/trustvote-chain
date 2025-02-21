@@ -1,34 +1,19 @@
 
 import { Shield, Wallet } from "lucide-react";
-import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { ethers } from "ethers";
+import { useWallet } from "@/contexts/WalletContext";
 
 const Header = () => {
-  const [walletConnected, setWalletConnected] = useState(false);
+  const { walletConnected, connectWallet } = useWallet();
   const { toast } = useToast();
 
-  const connectWallet = async () => {
+  const handleConnectWallet = async () => {
     try {
-      const ethereum = window.ethereum;
-
-      if (ethereum) {
-        await ethereum.request({ method: 'eth_requestAccounts' });
-        const ethersProvider = new ethers.BrowserProvider(ethereum);
-        await ethersProvider.getSigner();
-        
-        setWalletConnected(true);
-        toast({
-          title: "Wallet Connected",
-          description: "Your wallet has been successfully connected.",
-        });
-      } else {
-        toast({
-          title: "Metamask Required",
-          description: "Please install Metamask to use this feature.",
-          variant: "destructive",
-        });
-      }
+      await connectWallet();
+      toast({
+        title: "Wallet Connected",
+        description: "Your wallet has been successfully connected.",
+      });
     } catch (error) {
       toast({
         title: "Connection Failed",
@@ -54,7 +39,7 @@ const Header = () => {
           </a>
           {!walletConnected ? (
             <button 
-              onClick={connectWallet}
+              onClick={handleConnectWallet}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
             >
               <Wallet className="w-4 h-4" />
