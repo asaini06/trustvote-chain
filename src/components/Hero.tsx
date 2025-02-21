@@ -1,7 +1,10 @@
 
 import { Vote } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="py-20 px-4">
       <div className="container mx-auto text-center animate-fadeIn">
@@ -16,7 +19,10 @@ const Hero = () => {
           </p>
         </div>
         <div className="flex gap-4 justify-center">
-          <button className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+          <button
+            onClick={() => navigate('/vote')}
+            className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+          >
             Start Voting
           </button>
           <button className="px-6 py-3 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors">
