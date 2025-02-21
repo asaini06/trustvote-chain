@@ -1,12 +1,12 @@
 
-import { Chart } from "lucide-react";
+import { Vote } from "lucide-react";
 
 const Hero = () => {
   return (
     <section className="py-20 px-4">
       <div className="container mx-auto text-center animate-fadeIn">
         <div className="mb-8">
-          <Chart className="w-16 h-16 mx-auto text-primary mb-6" />
+          <Vote className="w-16 h-16 mx-auto text-primary mb-6" />
           <h1 className="text-4xl md:text-5xl font-bold mb-6">
             Secure Blockchain Voting System
           </h1>
