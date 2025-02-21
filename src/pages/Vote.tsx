@@ -50,9 +50,11 @@ const Vote = () => {
 
   const connectWallet = async () => {
     try {
-      if (window.ethereum) {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const ethersProvider = new ethers.BrowserProvider(window.ethereum);
+      const ethereum = window.ethereum;
+
+      if (ethereum) {
+        await ethereum.request({ method: 'eth_requestAccounts' });
+        const ethersProvider = new ethers.BrowserProvider(ethereum);
         const ethersSigner = await ethersProvider.getSigner();
         const votingContract = new ethers.Contract(
           CONTRACT_ADDRESS,
