@@ -1,14 +1,17 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shield, CheckCircle } from "lucide-react";
+import { Shield, CheckCircle, Wallet } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { ethers } from "ethers";
+import { SENTIMENT_VOTING_ABI, CONTRACT_ADDRESS } from "../utils/contracts";
 
 interface VoteOption {
   id: number;
   title: string;
   description: string;
   votes: number;
+  sentiment: number;
 }
 
 const Vote = () => {
@@ -16,23 +19,82 @@ const Vote = () => {
   const { toast } = useToast();
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [provider, setProvider] = useState<ethers.Provider | null>(null);
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  const [contract, setContract] = useState<ethers.Contract | null>(null);
 
   const voteOptions: VoteOption[] = [
     {
       id: 1,
-      title: "Option A",
-      description: "Support implementing new environmental policies",
+      title: "Positive Sentiment",
+      description: "Support implementing new environmental policies (Vote for Alice)",
       votes: 150,
+      sentiment: 1
     },
     {
       id: 2,
-      title: "Option B",
-      description: "Maintain current environmental regulations",
+      title: "Negative Sentiment",
+      description: "Against implementing new policies (Vote for Bob)",
       votes: 120,
+      sentiment: -1
     },
+    {
+      id: 3,
+      title: "Neutral Sentiment",
+      description: "Maintain current regulations (Vote for Charlie)",
+      votes: 80,
+      sentiment: 0
+    }
   ];
 
-  const handleVote = () => {
+  const connectWallet = async () => {
+    try {
+      if (window.ethereum) {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const ethersProvider = new ethers.BrowserProvider(window.ethereum);
+        const ethersSigner = await ethersProvider.getSigner();
+        const votingContract = new ethers.Contract(
+          CONTRACT_ADDRESS,
+          SENTIMENT_VOTING_ABI,
+          ethersSigner
+        );
+
+        setProvider(ethersProvider);
+        setSigner(ethersSigner);
+        setContract(votingContract);
+        setWalletConnected(true);
+
+        toast({
+          title: "Wallet Connected",
+          description: "Your wallet has been successfully connected.",
+        });
+      } else {
+        toast({
+          title: "Metamask Required",
+          description: "Please install Metamask to use this feature.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Connection Failed",
+        description: "Failed to connect to your wallet.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleVote = async () => {
+    if (!walletConnected) {
+      toast({
+        title: "Wallet Not Connected",
+        description: "Please connect your wallet first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (selectedOption === null) {
       toast({
         title: "Please select an option",
@@ -42,19 +104,35 @@ const Vote = () => {
       return;
     }
 
-    // Simulating blockchain transaction
-    toast({
-      title: "Processing Vote",
-      description: "Your vote is being recorded on the blockchain...",
-    });
+    try {
+      if (!contract) throw new Error("Contract not initialized");
 
-    setTimeout(() => {
+      toast({
+        title: "Processing Vote",
+        description: "Please confirm the transaction in your wallet...",
+      });
+
+      // Update sentiment score first
+      const selectedSentiment = voteOptions.find(opt => opt.id === selectedOption)?.sentiment ?? 0;
+      const updateTx = await contract.updateSentiment(selectedSentiment);
+      await updateTx.wait();
+
+      // Then cast the vote
+      const voteTx = await contract.vote();
+      await voteTx.wait();
+
       setHasVoted(true);
       toast({
         title: "Vote Recorded",
         description: "Your vote has been successfully recorded on the blockchain.",
       });
-    }, 2000);
+    } catch (error) {
+      toast({
+        title: "Voting Failed",
+        description: "There was an error processing your vote.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -65,6 +143,15 @@ const Vote = () => {
             <Shield className="w-8 h-8 text-primary" />
             <h1 className="text-2xl font-semibold">SecureVote</h1>
           </div>
+          {!walletConnected && (
+            <button
+              onClick={connectWallet}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              <Wallet className="w-4 h-4" />
+              Connect Wallet
+            </button>
+          )}
         </div>
       </header>
 
@@ -102,9 +189,14 @@ const Vote = () => {
           {!hasVoted ? (
             <button
               onClick={handleVote}
-              className="mt-8 w-full py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+              disabled={!walletConnected}
+              className={`mt-8 w-full py-3 ${
+                walletConnected 
+                  ? 'bg-primary hover:bg-primary/90' 
+                  : 'bg-gray-400 cursor-not-allowed'
+              } text-white rounded-lg transition-colors`}
             >
-              Confirm Vote
+              {walletConnected ? 'Confirm Vote' : 'Connect Wallet to Vote'}
             </button>
           ) : (
             <div className="mt-8 text-center">
